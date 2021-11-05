@@ -1,5 +1,5 @@
 {
-  "programName": "Test Program",
+  "program": "Test Program",
   "variables": {
     "test": 123
   },

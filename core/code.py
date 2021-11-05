@@ -66,7 +66,7 @@ class Code:
     
     @staticmethod
     def from_json(json):
-        program_name = json['programName'] if 'programName' in json else 'program'
+        program_name = json['program'] if 'program' in json else 'program'
         variables = json['variables'] if 'variables' in json else {}
         imports = json['import'] if 'import' in json else []
         code = json['code'] if 'code' in json else {}

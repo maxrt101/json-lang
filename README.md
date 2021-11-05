@@ -1,11 +1,11 @@
 # Json Lang  
-Esoteric programming language. The grammar is represented in JSON.  
+Esoteric programming language. The grammar is represented using JSON.  
 
 ## Syntax & Example  
 Program structure:
 ```json
 {
-  "programName": "Program Name",
+  "program": "Program Name",
   "import": [
     // Files to import
   ],
@@ -31,7 +31,7 @@ Features supported:
 Example JsonLang program:
 ```json
 {
-  "programName": "Example Program",
+  "program": "Example Program",
   "variables": {
     "test": 123
   },
