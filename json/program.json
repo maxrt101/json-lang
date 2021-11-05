@@ -1,0 +1,18 @@
+{
+  "programName": "Test Program",
+  "variables": {
+    "test": 123
+  },
+  "code": [
+    {"for": {
+      "range": [
+        {"set_local": {"name": "i", "value": 0}},
+        {"<": [{"local": "i"}, 10]},
+        {"set_local": {"name": "i", "value": {"add": [{"local": "i"}, 1] }}}
+      ],
+      "code": [
+        {"call": {"name": "print", "args": {"local": "i"}}}
+      ]
+    }}
+  ]
+}
