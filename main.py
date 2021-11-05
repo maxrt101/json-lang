@@ -8,10 +8,8 @@ from core.cli import Repl
 
 if __name__ == '__main__':
   if len(sys.argv) == 2:
-    code = Parser.parse(open(sys.argv[1]).read())
-    Runtime.run(code)
+    Runtime.run(Parser.parse(open(sys.argv[1]).read()))
   else:
-    repl = Repl()
-    repl.run()
+    Repl().run()
 
 # print(f'Usage: {sys.argv[0]} FILENAME')

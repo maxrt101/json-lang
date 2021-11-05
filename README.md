@@ -18,15 +18,33 @@ Program structure:
 }
 ```
 
-Example JsonLang program looks like this:
+Features supported:
+ - Global variables
+ - Local variables
+ - Function calls
+ - Function declaration
+ - Conditionals (if)
+ - Loops (for)
+ - Arithmetic & logic operations (`+`, `-`, `*`, `==`, `!=`, `<`, `>`)
+ - Source file importing
+
+Example JsonLang program:
 ```json
 {
-  "programName": "Test Program",
+  "programName": "Example Program",
   "variables": {
     "test": 123
   },
   "code": [
-    {"call": {"name": "print", "args": {"var": "test"}}}
+    {"if": {
+      "condition": {"==": [{"var": "test"}, 123]},
+      "then": {
+        "call": {"name": "print", "args": {"+": [{"var": "test"}, 1]}}
+      },
+      "else": {
+        "call": {"name": "print", "args": {"-": [{"var": "test"}, 1]}}
+      }
+    }}
   ]
 }
 ```
@@ -41,6 +59,7 @@ The usage of `main.py` is `./main.py [FILENAME]`.
 The REPL supports the following commands:
  - `quit` - Exits the REPL
  - `help` - Prints help msg
+ - `reset` - Resets the runtime (state)
  - `env` - REPL environment variables
  - `var` - Runtime variables
  - `locals` - Prints local variable

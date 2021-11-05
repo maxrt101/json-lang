@@ -8,12 +8,25 @@ import traceback
 import readline
 import sys
 
+class Colors:
+    RESET = '\033[0m'
+    BLACK = '\033[30m'
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    MAGENTA = '\033[35m'
+    CYAN = '\033[36m'
+    WHITE = '\033[37m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 class Repl:
     def __init__(self):
         self.env = {
-            'version': '0.1',
+            'version': '0.1.1',
             'prompt': '#',
-            'color': False,
+            'colors': True,
             'debug': False
         }
         self.rt = Runtime()
@@ -26,15 +39,22 @@ class Repl:
         running = True
         while running:
             try:
-                inp = input(self.env['prompt']+' ')
+                prompt = self.env['prompt']+' '
+                if self.env['colors']:
+                    prompt = Colors.BLUE + prompt + Colors.RESET
+
+                inp = input(prompt)
                 tokens = list(filter(len, inp.split(' ')))
+
                 if len(tokens) > 0:
                     if tokens[0] == 'quit':
                         running = False
                     elif tokens[0] == 'help':
                         print('JsonLang v' + self.env['version'])
                         print('Interpreter for JsonLang. Type json to execute it')
-                        print('Available commands: quit help env var locals func list load run_prog run')
+                        print('Available commands: quit help reset env var locals func list load run_prog run')
+                    elif tokens[0] == 'reset':
+                        self.rt = Runtime()
                     elif tokens[0] == 'env':
                         if len(tokens) > 1:
                             if tokens[1] == 'get':
@@ -68,7 +88,7 @@ class Repl:
                         print(self.rt.locals)
                     elif tokens[0] == 'func':
                         for k, v in self.rt.functions.items():
-                            print(f'{k}: {v}')
+                            print('{}({}): {}'.format(k, ' '.join(self.rt.function_args[k]) if k in self.rt.function_args else '...', v))
                     elif tokens[0] == 'list':
                         for k, v in self.rt.programs.items():
                             print(f'{k}: {v}')
@@ -83,10 +103,16 @@ class Repl:
                             self.rt.invoke_function(tokens[1], [self.rt.parse_expr(x) for x in tokens[2:]])
                     else:
                         self.rt.run_stmt(Parser.parse_json(inp))
+
             except BaseException as ex:
                 if ex.__class__ == KeyboardInterrupt:
                     print('\nKeyboardInterrupt')
                     exit(1)
-                print(f'ERROR: {ex.__class__.__name__}: {ex}')
+
+                errmsg = f'ERROR: {ex.__class__.__name__}: {ex}'
+                if self.env['colors']:
+                    errmsg = Colors.RED + errmsg + Colors.RESET
+
+                print(errmsg)
                 if self.env['debug']:
                     traceback.print_exc()

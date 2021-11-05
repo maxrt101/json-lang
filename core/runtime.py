@@ -19,6 +19,10 @@ class Runtime:
             'print': lambda args: print(' '.join(str(x) for x in args))
         }
 
+    def wrap_function(self, code):
+        return lambda args: self.run_block(code)
+
+
     def get_local(self, name):
         local = self.locals
         for x in range(self.depth-1):
@@ -125,7 +129,7 @@ class Runtime:
                 raise JsonLangRuntimeError('"set_local" expects an object')
         elif cmd == 'if':
             if type(value) == dict:
-                enter_scope()
+                self.enter_scope()
                 cond, then, else_, ret = '', {}, {}, None
                 if 'condition' in value:
                     cond = value['condition']
@@ -137,7 +141,7 @@ class Runtime:
                     ret = self.parse_expr(then)
                 else:
                     ret = self.parse_expr(else_)
-                exit_scope()
+                self.exit_scope()
                 return ret
             raise JsonLangRuntimeError('"if" expects an object')
         elif cmd == 'for':
@@ -170,6 +174,20 @@ class Runtime:
                 self.import_program(value)
             else:
                 raise JsonLangRuntimeError('"import" expects a list or a string') 
+        elif cmd == 'def':
+            if type(value) == dict:
+                name, code, args = '', {}, []
+                if 'name' in value:
+                    name = value['name']
+                if 'args' in value:
+                    args = value['args']
+                if 'code' in value:
+                    code = value['code']
+                if name != '':
+                    self.functions[name] = self.wrap_function(code)
+                    self.function_args[name] = args
+            else:
+                raise JsonLangRuntimeError('"def" expects an object')
         elif cmd in ['+', 'add']:
             if type(value) == list:
                 return reduce(lambda x, y: x + y, [self.parse_expr(x) for x in value])
@@ -198,19 +216,6 @@ class Runtime:
             if type(value) == list:
                 return reduce(lambda x, y: x > y, [self.parse_expr(x) for x in value])
             raise JsonLangRuntimeError('">" expects a list')
-        elif cmd == 'def':
-            if type(value) == dict:
-                name, code, args = '', {}, []
-                if 'name' in value:
-                    name = value['name']
-                if 'args' in value:
-                    args = value['args']
-                if 'code' in value:
-                    code = value['code']
-                if name != '':
-                    self.functions[name] = lambda args: self.run_block(code)
-                    self.function_args[name] = args
-            raise JsonLangRuntimeError('"def" expects an object')
         else:
             raise UnknownCommandError(f'Unrecognized command "{cmd}"')
 
