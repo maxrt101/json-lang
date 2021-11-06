@@ -25,7 +25,7 @@ class Colors:
 class Repl:
     def __init__(self):
         self.env = {
-            'version': '0.1.2',
+            'version': '0.1.3',
             'prompt': '#',
             'colors': True,
             'debug': False
