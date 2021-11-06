@@ -25,7 +25,7 @@ Features supported:
  - Function declaration
  - Conditionals (if)
  - Loops (for)
- - Arithmetic & logic operations (`+`, `-`, `*`, `==`, `!=`, `<`, `>`)
+ - Arithmetic & logic operations (`+`, `-`, `*`, `/`, `==`, `!=`, `<`, `>`, `&&`, `||`)
  - Source file importing
 
 Example JsonLang program:

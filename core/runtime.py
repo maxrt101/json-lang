@@ -8,6 +8,11 @@ from .errors import *
 from .parser import Parser
 from .code import Code
 
+class ReturnException(Exception):
+    def __init__(self, val):
+        super().__init__('return')
+        self.value = val
+
 class Runtime:
     def __init__(self):
         self.programs = {}
@@ -154,7 +159,7 @@ class Runtime:
                     for_code = value['code']
                 if type(for_range) == list:
                     self.parse_expr(for_range[0])
-                # elif type(for_range) == dict:
+                # elif type(for_range) == dict: # TODO
                 run = self.parse_expr(for_range[1])
                 while run:
                     self.run_block(for_code)
@@ -163,7 +168,7 @@ class Runtime:
                 self.exit_scope()
             else:
                 raise JsonLangRuntimeError('"for" expects an object')
-        elif cmd == 'breakpoint':
+        elif cmd == 'breakpoint': # TODO
             if value == 'cli':
                 pass
         elif cmd == 'import':
@@ -174,7 +179,7 @@ class Runtime:
                 self.import_program(value)
             else:
                 raise JsonLangRuntimeError('"import" expects a list or a string') 
-        elif cmd == 'def':
+        elif cmd in ['def', 'function']:
             if type(value) == dict:
                 name, code, args = '', {}, []
                 if 'name' in value:
@@ -188,6 +193,10 @@ class Runtime:
                     self.function_args[name] = args
             else:
                 raise JsonLangRuntimeError('"def" expects an object')
+        elif cmd == 'return':
+            raise ReturnException(value)
+        elif cmd in ['python', 'py']:
+            return eval(value)
         elif cmd in ['+', 'add']:
             if type(value) == list:
                 return reduce(lambda x, y: x + y, [self.parse_expr(x) for x in value])
@@ -200,6 +209,10 @@ class Runtime:
             if type(value) == list:
                 return reduce(lambda x, y: x * y, [self.parse_expr(x) for x in value])
             raise JsonLangRuntimeError('"*" expects a list')
+        elif cmd in ['/', 'div']:
+            if type(value) == list:
+                return reduce(lambda x, y: x / y, [self.parse_expr(x) for x in value])
+            raise JsonLangRuntimeError('"/" expects a list')
         elif cmd in ['==', 'eq']:
             if type(value) == list:
                 return reduce(lambda x, y: x == y, [self.parse_expr(x) for x in value])
@@ -216,6 +229,14 @@ class Runtime:
             if type(value) == list:
                 return reduce(lambda x, y: x > y, [self.parse_expr(x) for x in value])
             raise JsonLangRuntimeError('">" expects a list')
+        elif cmd in ['&&', 'and']:
+            if type(value) == list:
+                return reduce(lambda x, y: x and y, [self.parse_expr(x) for x in value])
+            raise JsonLangRuntimeError('"&&" expects a list')
+        elif cmd in ['||', 'or']:
+            if type(value) == list:
+                return reduce(lambda x, y: x or y, [self.parse_expr(x) for x in value])
+            raise JsonLangRuntimeError('"||" expects a list')
         else:
             raise UnknownCommandError(f'Unrecognized command "{cmd}"')
 
@@ -224,9 +245,19 @@ class Runtime:
             self.parse_stmt(k, v)
 
     def run_block(self, code_block: List):
-        for s in code_block:
-            for k, v in s.items():
-                self.parse_stmt(k, v)
+        ret = None
+        try:
+            for s in code_block:
+                if type(s) == dict:
+                    for k, v in s.items():
+                        ret = self.parse_stmt(k, v)
+                elif type(s) == list:
+                    ret = self.run_block(s)
+                else:
+                    ret = s
+        except ReturnException as ex:
+            ret = ex.value
+        return ret
 
     def run_code(self, code: Code):
         self.variables.update(code.variables)

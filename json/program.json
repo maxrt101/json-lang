@@ -13,6 +13,14 @@
       "code": [
         {"call": {"name": "print", "args": {"local": "i"}}}
       ]
-    }}
+    }},
+    {"def": {
+      "name": "returnTest",
+      "code": [
+        {"return": 123},
+        {"return": 456}
+      ]
+    }},
+    {"call": {"name": "print", "args": {"call": "returnTest"}}}
   ]
 }
