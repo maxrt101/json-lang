@@ -73,5 +73,5 @@ The REPL supports the following commands:
  - `func` - Prints the list pf functions
  - `list` - Lists programs
  - `load` - Loads a program
- - `run_prog` - Runs a program
- - `run` - Runs a function
+ - `run-prog` - Runs a program
+ - `run-func` - Runs a function

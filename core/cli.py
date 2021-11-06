@@ -53,7 +53,7 @@ class Repl:
                     elif tokens[0] == 'help':
                         print('JsonLang v' + self.env['version'])
                         print('Interpreter for JsonLang. Type json to execute it')
-                        print('Available commands: quit help reset env var locals func list load run_prog run')
+                        print('Available commands: quit help reset env var locals func list load run-prog run-func')
                     elif tokens[0] == 'reset':
                         self.rt = runtime.Runtime()
                     elif tokens[0] == 'env':
@@ -89,17 +89,17 @@ class Repl:
                         print(self.rt.locals)
                     elif tokens[0] == 'func':
                         for k, v in self.rt.functions.items():
-                            print('{}({}): {}'.format(k, ' '.join(self.rt.function_args[k]) if k in self.rt.function_args else '...', v))
+                            print('{}({}): {}'.format(k, ' '.join(v.args) if type(v) == runtime.Function else '...', v))
                     elif tokens[0] == 'list':
                         for k, v in self.rt.programs.items():
                             print(f'{k}: {v}')
                     elif tokens[0] == 'load':
                         if len(tokens) == 2:
                             self.rt.add_program(Parser.parse(open(tokens[1]).read()))
-                    elif tokens[0] == 'run_prog':
+                    elif tokens[0] == 'run-prog':
                         if len(tokens) > 1:
                             self.rt.run_program(' '.join(tokens[1:]))
-                    elif tokens[0] == 'run':
+                    elif tokens[0] == 'run-func':
                         if len(tokens) > 1:
                             self.rt.invoke_function(tokens[1], [self.rt.parse_expr(x) for x in tokens[2:]])
                     else:
