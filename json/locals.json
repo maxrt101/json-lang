@@ -1,0 +1,22 @@
+{
+  "program": "Locals Test",
+  "variables": {
+    "test": 123
+  },
+  "code": [
+    {"def": {
+      "name": "test",
+      "code": [
+        {"set_local": {"name": "i", "value": 1}},
+        {"call": {"name": "print", "args": {"local": "i"}}},
+        {"if": {
+          "condition": true,
+          "then": [
+            {"call": {"name": "print", "args": {"local": "__parent_locals__"}}}
+          ]
+        }}
+      ]
+    }},
+    {"call": "test"}
+  ]
+}

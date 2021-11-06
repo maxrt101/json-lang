@@ -1,12 +1,14 @@
 # runtime.py
 
-from typing import List, Dict
+from typing import List, Dict, Callable, Any
 from functools import reduce
 import sys
 
 from .errors import *
 from .parser import Parser
 from .code import Code
+
+from . import cli
 
 class ReturnException(Exception):
     def __init__(self, val):
@@ -24,49 +26,55 @@ class Runtime:
             'print': lambda args: print(' '.join(str(x) for x in args))
         }
 
-    def wrap_function(self, code):
+    def wrap_function(self, code: List) -> Callable[[List], Any]:
         return lambda args: self.run_block(code)
 
+    def get_local(self, name: str) -> Any:
+        current_locals = self.locals
+        while '__parent_locals__' in current_locals:
+            if name in current_locals:
+                return current_locals[name]
+            current_locals = current_locals['__parent_locals__']
 
-    def get_local(self, name):
-        local = self.locals
-        for x in range(self.depth-1):
-            local = local['locals']
-        return local[name]
-    
-    def set_local(self, name, value):
-        local = self.locals
-        for x in range(self.depth-1):
-            local = local['locals']
-        local[name] = value
+    def set_local(self, name: str, value: Any):
+        current_locals = self.locals
+        while '__parent_locals__' in current_locals:
+            if name in current_locals:
+                current_locals[name] = value
+                break
+            current_locals = current_locals['__parent_locals__']
 
     def add_program(self, code: Code):
         self.programs[code.name] = code
 
-    def invoke_function(self, name, args):
+    def invoke_function(self, name: str, args: List):
         if name == '':
             return 
         self.enter_scope()
         if name in self.function_args:
+            if args is None:
+                raise ArgumentMismathError(f'invoke_function(): Expected list, got {type(args)}') 
             if len(self.function_args[name]) == len(args):
                 for i in range(len(args)):
-                    self.set_local(self.function_args[name][i], args[i])
+                    self.locals[self.function_args[name][i]] = args[i]
             else:
                 raise ArgumentMismathError(f'Function {name} expected {len(self.function_args[name])} arguments, but got {len(args)}')
         else:
-            self.set_local('args', args)
+            self.locals['__args__'] = args
         res = self.functions[name](args)
         self.exit_scope()        
         return res
 
     def enter_scope(self):
-        self.set_local('locals', {})
         self.depth += 1
+        new_locals = {'__parent_locals__': self.locals}
+        self.locals = new_locals
 
     def exit_scope(self):
         self.depth -= 1
+        self.locals = self.locals['__parent_locals__']
 
-    def parse_expr(self, stmt):
+    def parse_expr(self, stmt: Any) -> Any:
         if type(stmt) == dict:
             res = []
             for k, v in stmt.items():
@@ -79,23 +87,13 @@ class Runtime:
         else:
             return stmt
 
-    def parse_stmt(self, cmd: str, value):
-        if cmd == 'call':
-            name, args = '', []
-            if type(value) == str:
-                name = value
-            elif type(value) == dict:
-                if 'name' in value:
-                    name = value['name']
-                if 'args' in value:
-                    if type(value['args']) == list:
-                        self.set_local('args', [self.parse_expr(x) for x in value['args']])
-                        args= self.get_local('args')
-                    else:
-                        args.append(self.parse_expr(value['args']))
-            else:
-                raise JsonLangRuntimeError('"call" expects an object or a string')
-            return self.invoke_function(name, args)
+    def parse_stmt(self, cmd: str, value: Any) -> Any:
+        if cmd in ['comment', 'ignore']:
+            pass
+        elif cmd in ['python', 'py']:
+            return eval(value)
+        elif cmd == 'print':
+            print(self.parse_expr(value))
         elif cmd == 'var':
             if type(value) == str:
                 return self.variables[value]
@@ -107,7 +105,8 @@ class Runtime:
             if type(value) == str:
                 return self.get_local(value)
             elif type(value) == dict:
-                if 'name' in value:
+                if 'name' in value and 'value' in value:
+                    self.set_local(value['name'], self.parse_expr(value['value']))
                     return self.get_local(value['name'])
             raise JsonLangRuntimeError('"local" expects an object or a string')
         elif cmd == 'set':
@@ -129,7 +128,9 @@ class Runtime:
                 if 'value' in value:
                     val = value['value']
                 if name != '' and val != '':
-                    self.set_local(name, self.parse_expr(val))
+                    self.locals[name] = self.parse_expr(val)
+                else:
+                    raise InvalidArgumentsError('"set_local" expected name & value')
             else:
                 raise JsonLangRuntimeError('"set_local" expects an object')
         elif cmd == 'if':
@@ -159,7 +160,7 @@ class Runtime:
                     for_code = value['code']
                 if type(for_range) == list:
                     self.parse_expr(for_range[0])
-                # elif type(for_range) == dict: # TODO
+                # elif type(for_range) == dict: # TODO: range-based for loops
                 run = self.parse_expr(for_range[1])
                 while run:
                     self.run_block(for_code)
@@ -168,17 +169,10 @@ class Runtime:
                 self.exit_scope()
             else:
                 raise JsonLangRuntimeError('"for" expects an object')
-        elif cmd == 'breakpoint': # TODO
-            if value == 'cli':
-                pass
-        elif cmd == 'import':
-            if type(value) == list:
-                for x in value:
-                    self.import_program(x)
-            elif type(value) == str:
-                self.import_program(value)
-            else:
-                raise JsonLangRuntimeError('"import" expects a list or a string') 
+        elif cmd == 'while':
+            pass
+        elif cmd == 'switch':
+            pass
         elif cmd in ['def', 'function']:
             if type(value) == dict:
                 name, code, args = '', {}, []
@@ -193,10 +187,36 @@ class Runtime:
                     self.function_args[name] = args
             else:
                 raise JsonLangRuntimeError('"def" expects an object')
+        elif cmd == 'call':
+            name, args = '', []
+            if type(value) == str:
+                name = value
+            elif type(value) == dict:
+                if 'name' in value:
+                    name = value['name']
+                if 'args' in value:
+                    if type(value['args']) == list:
+                        args = [self.parse_expr(x) for x in value['args']]
+                    else:
+                        args.append(self.parse_expr(value['args']))
+            else:
+                raise JsonLangRuntimeError('"call" expects an object or a string')
+            return self.invoke_function(name, args)
         elif cmd == 'return':
             raise ReturnException(value)
-        elif cmd in ['python', 'py']:
-            return eval(value)
+        elif cmd == 'import':
+            if type(value) == list:
+                for x in value:
+                    self.import_program(x)
+            elif type(value) == str:
+                self.import_program(value)
+            else:
+                raise JsonLangRuntimeError('"import" expects a list or a string') 
+        elif cmd == 'breakpoint': # TODO: breakpoints
+            if value == 'cli':
+                repl = cli.Repl()
+                repl.set_runtime(self)
+                repl.run()
         elif cmd in ['+', 'add']:
             if type(value) == list:
                 return reduce(lambda x, y: x + y, [self.parse_expr(x) for x in value])
@@ -244,7 +264,7 @@ class Runtime:
         for k, v in code.items():
             self.parse_stmt(k, v)
 
-    def run_block(self, code_block: List):
+    def run_block(self, code_block: List) -> Any:
         ret = None
         try:
             for s in code_block:

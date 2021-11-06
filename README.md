@@ -10,7 +10,7 @@ Program structure:
     // Files to import
   ],
   "variables": {
-    // List of variables
+    // List of global variables
   },
   "code": [
     // Code
@@ -36,15 +36,22 @@ Example JsonLang program:
     "test": 123
   },
   "code": [
-    {"if": {
-      "condition": {"==": [{"var": "test"}, 123]},
-      "then": {
-        "call": {"name": "print", "args": {"+": [{"var": "test"}, 1]}}
-      },
-      "else": {
-        "call": {"name": "print", "args": {"-": [{"var": "test"}, 1]}}
-      }
-    }}
+    {"function": {
+      "name": "test",
+      "args": ["i"],
+      "code": [
+        {"if": {
+          "condition": {"==": [{"local": "i"}, 123]},
+          "then": {
+            "call": {"name": "print", "args": {"+": [{"local": "i"}, 1]}}
+          },
+          "else": {
+            "call": {"name": "print", "args": {"-": [{"local": "i"}, 1]}}
+          }
+        }}
+      ]
+    }},
+    {"call": {"name": "test", "args": [{"var": "test"}]}}
   ]
 }
 ```

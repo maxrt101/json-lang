@@ -1,0 +1,24 @@
+{
+  "program": "Example Program",
+  "variables": {
+    "test": 123
+  },
+  "code": [
+    {"function": {
+      "name": "test",
+      "args": ["i"],
+      "code": [
+        {"if": {
+          "condition": {"==": [{"local": "i"}, 123]},
+          "then": {
+            "call": {"name": "print", "args": {"+": [{"local": "i"}, 1]}}
+          },
+          "else": {
+            "call": {"name": "print", "args": {"-": [{"local": "i"}, 1]}}
+          }
+        }}
+      ]
+    }},
+    {"call": {"name": "test", "args": [{"var": "test"}]}}
+  ]
+}

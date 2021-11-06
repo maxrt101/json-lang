@@ -1,8 +1,9 @@
 # cli.py
 
-from .runtime import Runtime
 from .errors import UnknownCommandError
 from .parser import Parser
+
+from . import runtime
 
 import traceback
 import readline
@@ -29,7 +30,7 @@ class Repl:
             'colors': True,
             'debug': False
         }
-        self.rt = Runtime()
+        self.rt = runtime.Runtime()
 
     def set_runtime(self, rt):
         self.rt = rt
@@ -39,7 +40,7 @@ class Repl:
         running = True
         while running:
             try:
-                prompt = self.env['prompt']+' '
+                prompt = self.env['prompt'] + ' '
                 if self.env['colors']:
                     prompt = Colors.BLUE + prompt + Colors.RESET
 
@@ -54,7 +55,7 @@ class Repl:
                         print('Interpreter for JsonLang. Type json to execute it')
                         print('Available commands: quit help reset env var locals func list load run_prog run')
                     elif tokens[0] == 'reset':
-                        self.rt = Runtime()
+                        self.rt = runtime.Runtime()
                     elif tokens[0] == 'env':
                         if len(tokens) > 1:
                             if tokens[1] == 'get':
@@ -107,12 +108,12 @@ class Repl:
             except BaseException as ex:
                 if ex.__class__ == KeyboardInterrupt:
                     print('\nKeyboardInterrupt')
-                    exit(1)
+                    return
 
                 errmsg = f'ERROR: {ex.__class__.__name__}: {ex}'
                 if self.env['colors']:
                     errmsg = Colors.RED + errmsg + Colors.RESET
-
                 print(errmsg)
+
                 if self.env['debug']:
                     traceback.print_exc()
