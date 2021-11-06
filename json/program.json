@@ -1,7 +1,8 @@
 {
   "program": "Test Program",
   "variables": {
-    "test": 123
+    "test": 123,
+    "a": 5
   },
   "code": [
     {"for": {
@@ -13,6 +14,18 @@
       "code": [
         {"call": {"name": "print", "args": {"local": "i"}}}
       ]
+    }},
+    {"while": {
+      "condition": {">": [{"var": "a"}, 0]},
+      "code": {"print": {"set": {"name": "a", "value": {"-": [{"var": "a"}, 1]} }}}
+    }},
+    {"switch": {
+      "value": {"var": "test"},
+      "case": {
+        "123": {"print": "case 123"},
+        "0": {"print": "case 0"},
+        "1": {"print": "case 1"}
+      }
     }},
     {"def": {
       "name": "returnTest",

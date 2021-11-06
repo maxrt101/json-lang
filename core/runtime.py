@@ -10,6 +10,30 @@ from .code import Code
 
 from . import cli
 
+class Constants:
+    wildcard_symbol = '_'
+
+class Function:
+    def __init__(self, args: List[str], function: Callable[[List], Any]):
+        self.args = args
+        self.function = function
+
+    def __call__(self, runtime, args: List) -> Any:
+        runtime.enter_scope()
+        if self.args is None:
+            runtime.locals['__args__'] = args
+        else:
+            if args is None:
+                raise ArgumentMismathError(f'Function.__call__(): Expected list, got {type(args)}')
+            if len(self.args) == len(args):
+                for i in range(len(args)):
+                    runtime.locals[self.args[i]] = args[i]
+            else:
+                raise ArgumentMismathError(f'Expected {len(self.args)} arguments, but got {len(args)}')
+        res = runtime.run_block(self.function)
+        runtime.exit_scope()
+        return res
+
 class ReturnException(Exception):
     def __init__(self, val):
         super().__init__('return')
@@ -21,13 +45,9 @@ class Runtime:
         self.variables = {}
         self.locals = {}
         self.depth = 0
-        self.function_args = {}
         self.functions = {
-            'print': lambda args: print(' '.join(str(x) for x in args))
+            'print': lambda rt, args: print(' '.join(str(x) for x in args))
         }
-
-    def wrap_function(self, code: List) -> Callable[[List], Any]:
-        return lambda args: self.run_block(code)
 
     def get_local(self, name: str) -> Any:
         current_locals = self.locals
@@ -48,22 +68,7 @@ class Runtime:
         self.programs[code.name] = code
 
     def invoke_function(self, name: str, args: List):
-        if name == '':
-            return 
-        self.enter_scope()
-        if name in self.function_args:
-            if args is None:
-                raise ArgumentMismathError(f'invoke_function(): Expected list, got {type(args)}') 
-            if len(self.function_args[name]) == len(args):
-                for i in range(len(args)):
-                    self.locals[self.function_args[name][i]] = args[i]
-            else:
-                raise ArgumentMismathError(f'Function {name} expected {len(self.function_args[name])} arguments, but got {len(args)}')
-        else:
-            self.locals['__args__'] = args
-        res = self.functions[name](args)
-        self.exit_scope()        
-        return res
+        return self.functions[name](self, args) if name != '' and name in self.functions else None
 
     def enter_scope(self):
         self.depth += 1
@@ -118,6 +123,7 @@ class Runtime:
                     val = value['value']
                 if name != '' and val != '':
                     self.variables[name] = self.parse_expr(val)
+                    return self.variables[name]
             else:
                 raise JsonLangRuntimeError('"set" expects an object')
         elif cmd == 'set_local':
@@ -163,16 +169,40 @@ class Runtime:
                 # elif type(for_range) == dict: # TODO: range-based for loops
                 run = self.parse_expr(for_range[1])
                 while run:
-                    self.run_block(for_code)
+                    self.__run_block_impl(for_code)
                     self.parse_expr(for_range[2])
                     run = self.parse_expr(for_range[1])
                 self.exit_scope()
             else:
                 raise JsonLangRuntimeError('"for" expects an object')
         elif cmd == 'while':
-            pass
+            if type(value) == dict:
+                self.enter_scope()
+                condition, code = None, None
+                if 'condition' in value:
+                    condition = value['condition']
+                if 'code' in value:
+                    code = value['code']
+                while self.parse_expr(condition):
+                    self.__run_block_impl(code)
+                self.exit_scope()
+            else:
+                raise JsonLangRuntimeError('"while" expects an object')
         elif cmd == 'switch':
-            pass
+            if type(value) == dict:
+                self.enter_scope()
+                switch_value, cases = None, {}
+                if 'value' in value:
+                    switch_value = str(self.parse_expr(value['value']))
+                if 'case' in value:
+                    cases = value['case']
+                if switch_value in cases:
+                    self.__run_block_impl(cases[switch_value])
+                elif Constants.wildcard_symbol in cases:
+                    self.__run_block_impl(cases[Constants.wildcard_symbol])
+                self.exit_scope()
+            else:
+                raise JsonLangRuntimeError('"while" expects an object')
         elif cmd in ['def', 'function']:
             if type(value) == dict:
                 name, code, args = '', {}, []
@@ -183,8 +213,7 @@ class Runtime:
                 if 'code' in value:
                     code = value['code']
                 if name != '':
-                    self.functions[name] = self.wrap_function(code)
-                    self.function_args[name] = args
+                    self.functions[name] = Function(args, code)
             else:
                 raise JsonLangRuntimeError('"def" expects an object')
         elif cmd == 'call':
@@ -264,20 +293,24 @@ class Runtime:
         for k, v in code.items():
             self.parse_stmt(k, v)
 
-    def run_block(self, code_block: List) -> Any:
+    def __run_block_impl(self, code_block) -> Any:
         ret = None
-        try:
+        if type(code_block) == dict:
+            for k, v in code_block.items():
+                ret = self.parse_stmt(k, v)
+        elif type(code_block) == list:
             for s in code_block:
-                if type(s) == dict:
-                    for k, v in s.items():
-                        ret = self.parse_stmt(k, v)
-                elif type(s) == list:
-                    ret = self.run_block(s)
-                else:
-                    ret = s
-        except ReturnException as ex:
-            ret = ex.value
+                ret = self.__run_block_impl(s)
+        else:
+            ret = s
+
         return ret
+
+    def run_block(self, code_block) -> Any:
+        try:
+            return self.__run_block_impl(code_block)
+        except ReturnException as ex:
+            return ex.value
 
     def run_code(self, code: Code):
         self.variables.update(code.variables)
